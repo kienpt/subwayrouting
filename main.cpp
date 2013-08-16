@@ -2,57 +2,52 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <vector>
+#include <map>
 
 #include <boost/graph/graph_traits.hpp>
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/dijkstra_shortest_paths.hpp>
 
 using namespace boost;
+using namespace std;
 typedef std::pair<int, int> Edge;
 
-void loadNodes(char* f, char** nodes)
+void loadNodes(char* f, std::vector<string> &nodes, std::map<std::string, int> &node2int)
 {
 //load all nodes from file
   std::ifstream  in(f);
-  char* line; 
-  int i = 0;
+  string line; 
+  int idx = 0;
   while(std::getline(in,line))
   {
-    //std::cout<<line<<std::endl;
-    //nodes[i] = const_cast<char*>(line.c_str());
-    
-    i++;
+    nodes.push_back(line);   
+    node2int[line] = idx;
+    idx ++;
   }
   std::cout<<"Done loading nodes"<<std::endl;
-  std::cout<<nodes[1]<<std::endl;
 }
 
-void loadEdges()
+void loadEdges(char*f, vector<Edge> &edges, vector<int> &weights, std::map<std::string, int> &node2int)
 {
 //load all edges from file
-}
+  std::ifstream  in(f);
+  string line;
 
-bool construct_graph(char* node_file, int &num_nodes, char** names, Edge* edge_array, int* weights)
-{
-  std::cout<<"Test";
-  /*char* _names[] = {"A", "B", "C"};
-  for(int i=0; i<=3; i++)
+  string node1;
+  string node2;
+  string weight;
+  while(std::getline(in,line))
   {
-    names[i] = _names[i];
-  }*/
-  
-  loadNodes(node_file, names);
-  std::cout<<names[1]<<std::endl;
-  num_nodes = 3;
-  
-  Edge _edge_array[] = { Edge(1, 2), Edge(2, 3), Edge(3, 1) };
-  for(int i=0; i<=3; i++)  
-    edge_array[i] = _edge_array[i];
-  
-  int _weights[] = {1, 2, 3};
-  for(int i=0; i<=3; i++) 
-    weights[i] = _weights[i];
-   
+    std::stringstream  lineStream(line);
+    std::getline(lineStream, node1, '\t');
+    std::getline(lineStream, node2, '\t');
+    std::getline(lineStream, weight, '\t');
+    Edge edge(node2int[node1], node2int[node2]);
+    edges.push_back(edge);
+    weights.push_back(atoi(weight.c_str()));
+  }
+  std::cout<<"Done loading edges"<<std::endl;
 }
 
 int main(int argc, char **argv)
@@ -72,15 +67,24 @@ int main(int argc, char **argv)
 */
 
 
-  int num_nodes;
-  char** names = new char *[3];
-  Edge* edge_array = new Edge[3];
-  int* weights = new int[3];
-  construct_graph(argv[1], num_nodes, names, edge_array, weights);
-  std::cout<<names[0]<<std::endl;
-  int num_arcs = sizeof(edge_array) / sizeof(Edge);
+  vector<string> nodes;
+  vector<Edge> _edges;
+  vector<int> weights;
+  std::map<std::string, int> node2int;
+  loadNodes(argv[1], nodes, node2int);
+  loadEdges(argv[2], _edges, weights, node2int);
 
-  graph_t g(edge_array, edge_array + num_arcs, weights, num_nodes);
+  const int num_nodes = nodes.size();
+  Edge* edge_array = new Edge[_edges.size()];
+  int* weight_array = new int[_edges.size()];
+  for(int i=0; i<_edges.size(); i++)
+  {
+      edge_array[i] = _edges[i];
+      weights[i] = weight_array[i];
+  } 
+  int num_arcs = sizeof(edge_array) / sizeof(Edge);
+  
+  graph_t g(edge_array, edge_array + num_arcs, weight_array, num_nodes);
   property_map<graph_t, edge_weight_t>::type weightmap = get(edge_weight, g);
   std::vector<vertex_descriptor> p(num_vertices(g));
   std::vector<int> d(num_vertices(g));
@@ -92,8 +96,8 @@ int main(int argc, char **argv)
   std::cout << "distances and parents:" << std::endl;
   graph_traits < graph_t >::vertex_iterator vi, vend;
   for (tie(vi, vend) = vertices(g); vi != vend; ++vi) {
-    std::cout << "distance(" << names[*vi] << ") = " << d[*vi] << ", ";
-    std::cout << "parent(" << names[*vi] << ") = " << names[p[*vi]] << std::
+    std::cout << "distance(" << nodes[*vi] << ") = " << d[*vi] << ", ";
+    std::cout << "parent(" << nodes[*vi] << ") = " << nodes[p[*vi]] << std::
       endl;
   }
   std::cout << std::endl;
@@ -111,7 +115,7 @@ int main(int argc, char **argv)
     graph_traits < graph_t >::edge_descriptor e = *ei;
     graph_traits < graph_t >::vertex_descriptor
       u = source(e, g), v = target(e, g);
-    dot_file << names[u] << " -> " << names[v]
+    dot_file << nodes[u] << " -> " << nodes[v]
       << "[label=\"" << get(weightmap, e) << "\"";
     if (p[v] == u)
       dot_file << ", color=\"black\"";
