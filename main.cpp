@@ -23,7 +23,7 @@ void loadNodes(char* f, std::vector<string> &nodes, std::map<std::string, int> &
   {
     nodes.push_back(line);   
     node2int[line] = idx;
-    idx ++;
+    idx = idx + 1;
   }
   std::cout<<"Done loading nodes"<<std::endl;
 }
@@ -59,11 +59,12 @@ int main(int argc, char **argv)
 
 /*
   const int num_nodes = 5;
-  enum nodes { A, B, C, D, E };
-  char name[] = "ABCDE";
+  enum enum_nodes { A, B, C, D, E };
+  char nodes[] = "ABCDE";
   Edge edge_array[] = { Edge(A, C), Edge(B, B), Edge(B, D), Edge(B, E),
     Edge(C, B), Edge(C, D), Edge(D, E), Edge(E, A), Edge(E, B) };
-  int weights[] = { 1, 2, 1, 2, 7, 3, 1, 1, 1 };
+  int weight_array[] = { 1, 2, 1, 2, 7, 3, 1, 1, 1 };
+  int num_arcs = sizeof(edge_array) / sizeof(Edge);
 */
 
 
@@ -75,33 +76,41 @@ int main(int argc, char **argv)
   loadEdges(argv[2], _edges, weights, node2int);
 
   const int num_nodes = nodes.size();
-  Edge* edge_array = new Edge[_edges.size()];
-  int* weight_array = new int[_edges.size()];
+  Edge edge_array [_edges.size()];
+  int weight_array [_edges.size()];
   for(int i=0; i<_edges.size(); i++)
   {
       edge_array[i] = _edges[i];
-      weights[i] = weight_array[i];
+      weight_array[i] = weights[i];
   } 
   int num_arcs = sizeof(edge_array) / sizeof(Edge);
-  
+
   graph_t g(edge_array, edge_array + num_arcs, weight_array, num_nodes);
   property_map<graph_t, edge_weight_t>::type weightmap = get(edge_weight, g);
   std::vector<vertex_descriptor> p(num_vertices(g));
   std::vector<int> d(num_vertices(g));
-  vertex_descriptor s = vertex(1, g);
+  
+  int src = node2int[std::string(argv[3])];
+  int des = node2int[std::string(argv[4])];
+  cout<<"Source: "<<nodes[src]<<endl;
+  cout<<"Destination: "<<nodes[des]<<endl;
+  vertex_descriptor s = vertex(src, g);
 
-
+  cout<<"Number of vertices: "<<num_vertices(g)<<endl;
+  
   dijkstra_shortest_paths(g, s, predecessor_map(&p[0]).distance_map(&d[0]));
 
   std::cout << "distances and parents:" << std::endl;
   graph_traits < graph_t >::vertex_iterator vi, vend;
   for (tie(vi, vend) = vertices(g); vi != vend; ++vi) {
-    std::cout << "distance(" << nodes[*vi] << ") = " << d[*vi] << ", ";
-    std::cout << "parent(" << nodes[*vi] << ") = " << nodes[p[*vi]] << std::
-      endl;
+    if (*vi == des)
+    {
+      std::cout << "distance(" << nodes[*vi] << ") = " << d[*vi] << ", ";
+      std::cout << "parent(" << nodes[*vi] << ") = " << nodes[p[*vi]] << std::endl;
+    }
   }
   std::cout << std::endl;
-
+/*
   std::ofstream dot_file("figs/dijkstra-eg.dot");
 
   dot_file << "digraph D {\n"
@@ -123,6 +132,6 @@ int main(int argc, char **argv)
       dot_file << ", color=\"grey\"";
     dot_file << "]";
   }
-  dot_file << "}";
+  dot_file << "}";*/
   return EXIT_SUCCESS;
 }
