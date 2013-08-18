@@ -50,7 +50,7 @@ with open(infile) as lines:
 		pre_train = cur_train
 		pre_trip = cur_trip
 		#Gather trip_train_direction set that cross the same stop
-		_stop = a[2].strip("NS") #parent stop, without direction N, S
+		_stop = a[2][:-1] #parent stop, without direction N, S
 		if stop2train.has_key(_stop):
 			stop2train[_stop].add(cur_train)
 		else:
