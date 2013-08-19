@@ -55,7 +55,7 @@ with open(infile) as lines:
 			stop2train[_stop].add(cur_train)
 		else:
 			trains = Set([cur_train])
-			stop2train[a[2]] = trains
+			stop2train[_stop] = trains
 
 for stop in stop2train.keys():
         if len(stop2train[stop]) > 1:

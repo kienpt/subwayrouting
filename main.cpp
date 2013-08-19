@@ -25,7 +25,6 @@ void loadNodes(char* f, std::vector<string> &nodes, std::map<std::string, int> &
     node2int[line] = idx;
     idx = idx + 1;
   }
-  std::cout<<"Done loading nodes"<<std::endl;
 }
 
 void loadEdges(char*f, vector<Edge> &edges, vector<int> &weights, std::map<std::string, int> &node2int)
@@ -47,7 +46,6 @@ void loadEdges(char*f, vector<Edge> &edges, vector<int> &weights, std::map<std::
     edges.push_back(edge);
     weights.push_back(atoi(weight.c_str()));
   }
-  std::cout<<"Done loading edges"<<std::endl;
 }
 
 int main(int argc, char **argv)
@@ -94,19 +92,26 @@ int main(int argc, char **argv)
   int des = node2int[std::string(argv[4])];
   cout<<"Source: "<<nodes[src]<<endl;
   cout<<"Destination: "<<nodes[des]<<endl;
-  vertex_descriptor s = vertex(src, g);
-
-  cout<<"Number of vertices: "<<num_vertices(g)<<endl;
+  vertex_descriptor start= vertex(src, g);
   
-  dijkstra_shortest_paths(g, s, predecessor_map(&p[0]).distance_map(&d[0]));
+  dijkstra_shortest_paths(g, start, predecessor_map(&p[0]).distance_map(&d[0]));
+//Get path
+  cout<< p.size()<<endl;
 
-  std::cout << "distances and parents:" << std::endl;
+//Get path
   graph_traits < graph_t >::vertex_iterator vi, vend;
   for (tie(vi, vend) = vertices(g); vi != vend; ++vi) {
     if (*vi == des)
     {
-      std::cout << "distance(" << nodes[*vi] << ") = " << d[*vi] << ", ";
-      std::cout << "parent(" << nodes[*vi] << ") = " << nodes[p[*vi]] << std::endl;
+      std::cout << "Distance from " <<nodes[src]<<" to "<< nodes[*vi] << " = " << d[*vi] <<endl;
+      std::cout << "Path: "<< std::endl;
+      while(des != src)
+      {
+        std::cout<< nodes[des] << std::endl;
+        des = p[des];
+      }
+      std::cout<< nodes[des];
+//      std::cout << "parent(" << nodes[*vi] << ") = " << nodes[p[p[*vi]]] << std::endl;
     }
   }
   std::cout << std::endl;
