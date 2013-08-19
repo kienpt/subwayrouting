@@ -54,18 +54,6 @@ int main(int argc, char **argv)
   typedef graph_traits < graph_t >::vertex_descriptor vertex_descriptor;
   typedef graph_traits < graph_t >::edge_descriptor edge_descriptor;
 
-
-/*
-  const int num_nodes = 5;
-  enum enum_nodes { A, B, C, D, E };
-  char nodes[] = "ABCDE";
-  Edge edge_array[] = { Edge(A, C), Edge(B, B), Edge(B, D), Edge(B, E),
-    Edge(C, B), Edge(C, D), Edge(D, E), Edge(E, A), Edge(E, B) };
-  int weight_array[] = { 1, 2, 1, 2, 7, 3, 1, 1, 1 };
-  int num_arcs = sizeof(edge_array) / sizeof(Edge);
-*/
-
-
   vector<string> nodes;
   vector<Edge> _edges;
   vector<int> weights;
@@ -95,8 +83,6 @@ int main(int argc, char **argv)
   vertex_descriptor start= vertex(src, g);
   
   dijkstra_shortest_paths(g, start, predecessor_map(&p[0]).distance_map(&d[0]));
-//Get path
-  cout<< p.size()<<endl;
 
 //Get path
   graph_traits < graph_t >::vertex_iterator vi, vend;
@@ -104,39 +90,18 @@ int main(int argc, char **argv)
     if (*vi == des)
     {
       std::cout << "Distance from " <<nodes[src]<<" to "<< nodes[*vi] << " = " << d[*vi] <<endl;
-      std::cout << "Path: "<< std::endl;
-      while(des != src)
+      if (d[*vi] < 100000)
       {
-        std::cout<< nodes[des] << std::endl;
-        des = p[des];
+        std::cout << "Path: "<< std::endl;
+        while(des != src)
+        {
+          std::cout<< nodes[des] << std::endl;
+          des = p[des];
+        }
+        std::cout<< nodes[des];
       }
-      std::cout<< nodes[des];
-//      std::cout << "parent(" << nodes[*vi] << ") = " << nodes[p[p[*vi]]] << std::endl;
     }
   }
   std::cout << std::endl;
-/*
-  std::ofstream dot_file("figs/dijkstra-eg.dot");
-
-  dot_file << "digraph D {\n"
-    << "  rankdir=LR\n"
-    << "  size=\"4,3\"\n"
-    << "  ratio=\"fill\"\n"
-    << "  edge[style=\"bold\"]\n" << "  node[shape=\"circle\"]\n";
-
-  graph_traits < graph_t >::edge_iterator ei, ei_end;
-  for (tie(ei, ei_end) = edges(g); ei != ei_end; ++ei) {
-    graph_traits < graph_t >::edge_descriptor e = *ei;
-    graph_traits < graph_t >::vertex_descriptor
-      u = source(e, g), v = target(e, g);
-    dot_file << nodes[u] << " -> " << nodes[v]
-      << "[label=\"" << get(weightmap, e) << "\"";
-    if (p[v] == u)
-      dot_file << ", color=\"black\"";
-    else
-      dot_file << ", color=\"grey\"";
-    dot_file << "]";
-  }
-  dot_file << "}";*/
   return EXIT_SUCCESS;
 }
