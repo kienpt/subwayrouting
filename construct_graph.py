@@ -57,6 +57,15 @@ with open(infile) as lines:
 			trains = Set([cur_train])
 			stop2train[_stop] = trains
 
+#Output stop2train 
+s2t_f = open("stop2train.csv", "w")
+for stop in stop2train.keys():
+	s2t = stop
+	for train in stop2train[stop]:
+                s2t = s2t + "\t" + train
+	s2t_f.write(s2t + "\n")
+#Generate edges
+
 for stop in stop2train.keys():
         if len(stop2train[stop]) > 1:
                 for train1 in stop2train[stop]:
@@ -70,10 +79,10 @@ for stop in stop2train.keys():
 					edge2 = node11 + "\t" + node22
 					edge3 = node12 + "\t" + node21 
 					edge4 = node12 + "\t" + node22
-                                        edges[edge1] = "900"
-					edges[edge2] = "900"
-					edges[edge3] = "900"
-					edges[edge4] = "900"
+                                        edges[edge1] = "600"
+					edges[edge2] = "600"
+					edges[edge3] = "600"
+					edges[edge4] = "600"
                                         #It is directed graph then we keep edges in both direction
 
 #Write nodes
@@ -88,3 +97,4 @@ for key in edges.keys():
 
 nodes_f.close()
 edges_f.close()
+s2t_f.close()
