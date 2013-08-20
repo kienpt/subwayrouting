@@ -41,7 +41,6 @@ float distance(float lat1, float lng1, float lat2, float lng2)
 	float a = sin(dlat/2)*sin(dlat/2) + cos(lat1)*cos(lat2)*sin(dlng/2)*sin(dlng/2);
 	float c = 2 * atan2( sqrt(a), sqrt(1-a) );
 	float dist = R * c;
-	std::cout<<dist<<endl;
 	return dist;
 }
 
@@ -129,52 +128,64 @@ void loadStop2Trains(std::string f, std::map<std::string, std::vector<std::strin
 	}
 }
 
-void mk_starts_goals(float sLat, float sLng, float gLat, float gLng, map<std::string, Stop> mStop, vector<std::string> &start_list, vector<std::string> &goal_list)
+void mk_starts_goals(float sLat, float sLng, float gLat, float gLng, map<std::string, Stop> mStop, map<std::string, int> &starts, map<std::string, int> &goals)
 {
+	cout<<sLat<<endl;
+	cout<<sLng<<endl;
+	cout<<gLat<<endl;
+	cout<<gLng<<endl;
 	for(map<std::string, Stop>::const_iterator it=mStop.begin(); it!=mStop.end(); it++)
 	{
 		float start_dist = distance(sLat, sLng, it->second._lat, it->second._lng);
 		if (start_dist < 1.5) //it takes roundly 20 mins to walk 1.5 * sqrt(2) km
-			start_list.push_back(it->first);
+			starts[it->first] = (int) (start_dist/5*3600);
 		else
 		{
 			float goal_dist = distance(gLat, gLng, it->second._lat, it->second._lng);
-			if (goal_dist < 1.5)
-				goal_list.push_back(it->first);
+			if (goal_dist < 1.5){
+				goals[it->first] = (int) (goal_dist/5*3600);
 		}
 	}
 }
 
-void dijkstra(graph_t g, std::string sStart, std::string sGoal, vector<string> nodes, std::map<std::string, int> node2int, std::map<std::string, std::vector<std::string> > stop2trains)
+void dijkstra(graph_t g, map<std::string, int> starts, map<std::string, int> goals, vector<string> nodes, std::map<std::string, int> node2int, std::map<std::string, std::vector<std::string> > stop2trains)
 {
-	vector<std::string> s_trains = stop2trains[sStart];//List of trains that stop at sStart station
-	vector<std::string> g_trains = stop2trains[sGoal];//List of trains that stop at sGoal station
-	vector<std::string> start_list;
-	vector<std::string> goal_list;
-
-	for(int i=0; i < s_trains.size(); i++)  
+	map<std::string, int> start_list;
+	map<std::string, int> goal_list;
+	for(map<std::string, int>::const_iterator it=starts.begin(); it!=starts.end(); it++)
 	{
-		start_list.push_back(sStart + "N_" + s_trains[i]);
-		start_list.push_back(sStart + "S_" + s_trains[i]);
+		vector<std::string> s_trains = stop2trains[it->first];//List of trains that stop at sStart station
+		for(int i=0; i < s_trains.size(); i++)  
+		{
+			start_list[it->first + "N_" + s_trains[i]] = it->second;
+			start_list[it->first + "S_" + s_trains[i]] = it->second;
+		}
 	}
 
-	for(int i=0; i < g_trains.size(); i++)  
+	for(map<std::string, int>::const_iterator it=goals.begin(); it!=goals.end(); it++)
 	{
-		goal_list.push_back(sGoal + "N_" + g_trains[i]);
-		goal_list.push_back(sGoal + "S_" + g_trains[i]);
+		vector<std::string> g_trains = stop2trains[it->first];//List of trains that stop at goals[x] station
+		for(int i=0; i < g_trains.size(); i++)  
+		{
+			goal_list[it->first + "N_" + g_trains[i]] = it->second;;
+			goal_list[it->first + "S_" + g_trains[i]] = it->second;
+		}
 	}
 
 	int minDistance = 999999;
 	std::vector<vertex_descriptor> minp;
-	//std::vector<int> mind;
 	int minStart;//Station index
 	int minGoal;//Station index
 	
-	for(int i=0; i<start_list.size(); i++)
-		for(int j=0; j<goal_list.size(); j++)
+	for(map<std::string, int>::const_iterator s_it=start_list.begin(); s_it!=start_list.end(); s_it++)
+		for(map<std::string, int>::const_iterator g_it=goal_list.begin(); g_it!=goal_list.end(); g_it++)
 		{
-			int nStart = node2int[start_list[i]];
-			int nGoal = node2int[goal_list[j]];
+			if(g_it->second < 0)
+				cout<<"Goal:  "<<g_it->second<<endl;
+			if(s_it->second < 0)
+				cout<<"Start:  "<<s_it->second<<endl;
+			int nStart = node2int[s_it->first];
+			int nGoal = node2int[g_it->first];
 			vertex_descriptor start= vertex(nStart, g);
 			std::vector<vertex_descriptor> p(num_vertices(g));
 			std::vector<int> d(num_vertices(g));
@@ -187,13 +198,17 @@ void dijkstra(graph_t g, std::string sStart, std::string sGoal, vector<string> n
 			{
 				if (*vi == nGoal)
 				{
+					int distance = d[*vi];
 					if (d[*vi] < minDistance)
 					{
-						minDistance = d[*vi];
-						minp = p;
-						//mind = d;	
-						minStart = nStart;
-						minGoal = nGoal;
+						int distance = d[*vi] + s_it->second + g_it->second;
+						if (distance < minDistance)
+						{
+							minDistance = distance;
+							minp = p;
+							minStart = nStart;
+							minGoal = nGoal;
+						}
 					}		
 				}
 			}	
@@ -243,6 +258,13 @@ int main(int argc, char **argv)
 
 	graph_t g(edge_array, edge_array + num_arcs, weight_array, num_nodes);
 	property_map<graph_t, edge_weight_t>::type weightmap = get(edge_weight, g);
-	dijkstra(g, std::string(argv[1]), std::string(argv[2]), nodes, node2int, s2t);
+	map<std::string, int> starts;//map the station with walk time to starting location
+	map<std::string, int> goals;
+	float sLat = atof(argv[1]);//Latitude of starting point
+	float sLng = atof(argv[2]);//Longitude of starting point
+	float gLat = atof(argv[3]);//Latitude of goal point
+	float gLng = atof(argv[4]);//Longitude of goal point
+	mk_starts_goals(sLat, sLng, gLat, gLng, mStop, starts, goals);
+	dijkstra(g, starts, goals, nodes, node2int, s2t);
 	return EXIT_SUCCESS;
 }
