@@ -210,10 +210,17 @@ int main(int argc, char **argv)
 	vector<int> weights;
 	std::map<std::string, int> node2int;
 	std::map<std::string, std::vector<std::string> > s2t; //Mapping from stop to list of trains
+	std::map<std::string, Stop> mStop;//Mapping stop id to it's properties
 
 	loadNodes(argv[1], nodes, node2int);
 	loadEdges(argv[2], _edges, weights, node2int);
 	loadStop2Trains(argv[3], s2t);
+	loadStop(argv[4], mStop);
+
+	//Test
+	cout<< mStop.size()<<endl;
+	
+	//Test
 
 	//Initialize graphs's properties
 	const int num_nodes = nodes.size();
@@ -228,6 +235,6 @@ int main(int argc, char **argv)
 
 	graph_t g(edge_array, edge_array + num_arcs, weight_array, num_nodes);
 	property_map<graph_t, edge_weight_t>::type weightmap = get(edge_weight, g);
-	dijkstra(g, std::string(argv[4]), std::string(argv[5]), nodes, node2int, s2t);
+	dijkstra(g, std::string(argv[5]), std::string(argv[6]), nodes, node2int, s2t);
 	return EXIT_SUCCESS;
 }
