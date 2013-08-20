@@ -11,6 +11,11 @@
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/dijkstra_shortest_paths.hpp>
 
+#define EDGES_FILE "edges.txt"
+#define NODES_FILE "nodes.txt"
+#define STOP_2_TRAINS_FILE "stop2train.csv"
+#define STOPS_FILE "stops.txt"
+
 using namespace boost;
 using namespace std;
 
@@ -40,15 +45,9 @@ float distance(float lat1, float lng1, float lat2, float lng2)
 	return dist;
 }
 
-int walkTime(float lat1, float lng1, float lat2, float lng2)
+void loadStop(std::string f, map<std::string, Stop> &mStop)
 {
-	float dist = distance(lat1, lng1, lat2, lng2);
-	return (int)dist/5*(3600);//prefered walking speed is 5km/h
-}
-
-void loadStop(char* f, map<std::string, Stop> &mStop)
-{
-	std::ifstream  in(f);
+	std::ifstream  in(f.c_str());
         std::string line;
 	std::string address;
 	std::string stopID;
@@ -78,10 +77,10 @@ void loadStop(char* f, map<std::string, Stop> &mStop)
 	}
 }
 
-void loadNodes(char* f, std::vector<string> &nodes, std::map<std::string, int> &node2int)
+void loadNodes(std::string f, std::vector<string> &nodes, std::map<std::string, int> &node2int)
 {
 	//load all nodes from file
-	std::ifstream  in(f);
+	std::ifstream  in(f.c_str());
 	std::string line; 
 	int idx = 0;
 	while(std::getline(in,line))
@@ -92,10 +91,10 @@ void loadNodes(char* f, std::vector<string> &nodes, std::map<std::string, int> &
 	}
 }
 
-void loadEdges(char*f, vector<Edge> &edges, vector<int> &weights, std::map<std::string, int> &node2int)
+void loadEdges(std::string f, vector<Edge> &edges, vector<int> &weights, std::map<std::string, int> &node2int)
 {
 	//load all edges from file
-	std::ifstream  in(f);
+	std::ifstream  in(f.c_str());
 	string line;
 
 	string node1;
@@ -113,9 +112,9 @@ void loadEdges(char*f, vector<Edge> &edges, vector<int> &weights, std::map<std::
 	}
 }
 
-void loadStop2Trains(char *f, std::map<std::string, std::vector<std::string> > &stop2trains)
+void loadStop2Trains(std::string f, std::map<std::string, std::vector<std::string> > &stop2trains)
 {
-	std::ifstream in(f);
+	std::ifstream in(f.c_str());
 	string line;
 	string stop;
 	string train;
@@ -127,6 +126,22 @@ void loadStop2Trains(char *f, std::map<std::string, std::vector<std::string> > &
 		while(std::getline(lineStream, train, '\t'))
 			trains.push_back(train);
 		stop2trains[stop] = trains;
+	}
+}
+
+void mk_starts_goals(float sLat, float sLng, float gLat, float gLng, map<std::string, Stop> mStop, vector<std::string> &start_list, vector<std::string> &goal_list)
+{
+	for(map<std::string, Stop>::const_iterator it=mStop.begin(); it!=mStop.end(); it++)
+	{
+		float start_dist = distance(sLat, sLng, it->second._lat, it->second._lng);
+		if (start_dist < 1.5) //it takes roundly 20 mins to walk 1.5 * sqrt(2) km
+			start_list.push_back(it->first);
+		else
+		{
+			float goal_dist = distance(gLat, gLng, it->second._lat, it->second._lng);
+			if (goal_dist < 1.5)
+				goal_list.push_back(it->first);
+		}
 	}
 }
 
@@ -154,6 +169,7 @@ void dijkstra(graph_t g, std::string sStart, std::string sGoal, vector<string> n
 	//std::vector<int> mind;
 	int minStart;//Station index
 	int minGoal;//Station index
+	
 	for(int i=0; i<start_list.size(); i++)
 		for(int j=0; j<goal_list.size(); j++)
 		{
@@ -202,9 +218,6 @@ void dijkstra(graph_t g, std::string sStart, std::string sGoal, vector<string> n
 
 int main(int argc, char **argv)
 {
-	//Test
-	distance(40.714111, -74.008585, 40.680438, -73.950426);
-	//Test
 	vector<string> nodes;
 	vector<Edge> _edges;
 	vector<int> weights;
@@ -212,16 +225,11 @@ int main(int argc, char **argv)
 	std::map<std::string, std::vector<std::string> > s2t; //Mapping from stop to list of trains
 	std::map<std::string, Stop> mStop;//Mapping stop id to it's properties
 
-	loadNodes(argv[1], nodes, node2int);
-	loadEdges(argv[2], _edges, weights, node2int);
-	loadStop2Trains(argv[3], s2t);
-	loadStop(argv[4], mStop);
-
-	//Test
-	cout<< mStop.size()<<endl;
-	
-	//Test
-
+	loadNodes(NODES_FILE, nodes, node2int);
+	loadEdges(EDGES_FILE, _edges, weights, node2int);
+	loadStop2Trains(STOP_2_TRAINS_FILE, s2t);
+	loadStop(STOPS_FILE, mStop);
+	cout<<"Done loading data..."<<endl;
 	//Initialize graphs's properties
 	const int num_nodes = nodes.size();
 	Edge edge_array [_edges.size()];
@@ -235,6 +243,6 @@ int main(int argc, char **argv)
 
 	graph_t g(edge_array, edge_array + num_arcs, weight_array, num_nodes);
 	property_map<graph_t, edge_weight_t>::type weightmap = get(edge_weight, g);
-	dijkstra(g, std::string(argv[5]), std::string(argv[6]), nodes, node2int, s2t);
+	dijkstra(g, std::string(argv[1]), std::string(argv[2]), nodes, node2int, s2t);
 	return EXIT_SUCCESS;
 }
