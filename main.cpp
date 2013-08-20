@@ -130,10 +130,6 @@ void loadStop2Trains(std::string f, std::map<std::string, std::vector<std::strin
 
 void mk_starts_goals(float sLat, float sLng, float gLat, float gLng, map<std::string, Stop> mStop, map<std::string, int> &starts, map<std::string, int> &goals)
 {
-	cout<<sLat<<endl;
-	cout<<sLng<<endl;
-	cout<<gLat<<endl;
-	cout<<gLng<<endl;
 	for(map<std::string, Stop>::const_iterator it=mStop.begin(); it!=mStop.end(); it++)
 	{
 		float start_dist = distance(sLat, sLng, it->second._lat, it->second._lng);
@@ -142,7 +138,7 @@ void mk_starts_goals(float sLat, float sLng, float gLat, float gLng, map<std::st
 		else
 		{
 			float goal_dist = distance(gLat, gLng, it->second._lat, it->second._lng);
-			if (goal_dist < 1.5){
+			if (goal_dist < 1.5)
 				goals[it->first] = (int) (goal_dist/5*3600);
 		}
 	}
