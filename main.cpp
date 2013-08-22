@@ -235,9 +235,7 @@ int main(int argc, char **argv)
 	loadEdges(EDGES_FILE, _edges, weights, node2int);
 	loadStop2Trains(STOP_2_TRAINS_FILE, s2t);
 	loadStop(STOPS_FILE, mStop);
-	cout<<"Done loading data..."<<endl;
-
-	mk_starts_goals(sLat, sLng, gLat, gLng, mStop, starts, goals);
+	cout<<"Done loading data."<<endl;
 
 	//Initialize graphs's properties
 	//Consider start and goal are two nodes. ID of starting node is "start", ID of goal node is "goal"
@@ -245,9 +243,10 @@ int main(int argc, char **argv)
 	node2int["start"] = nodes.size()-1;
 	nodes.push_back("goal");
 	node2int["goal"] = nodes.size()-1;
-
 	const int num_nodes = nodes.size();
 	
+	mk_starts_goals(sLat, sLng, gLat, gLng, mStop, starts, goals);//Find stations around starting and goal nodes
+
 	addEdges(starts, goals, _edges, weights, s2t, node2int);
 	Edge edge_array [_edges.size()];
 	int weight_array [_edges.size()];
@@ -260,6 +259,7 @@ int main(int argc, char **argv)
 
 	graph_t g(edge_array, edge_array + num_arcs, weight_array, num_nodes);
 	property_map<graph_t, edge_weight_t>::type weightmap = get(edge_weight, g);
+	
 	dijkstra(g, nodes, node2int);
 	return EXIT_SUCCESS;
 }
