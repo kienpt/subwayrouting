@@ -144,105 +144,111 @@ void mk_starts_goals(float sLat, float sLng, float gLat, float gLng, map<std::st
 	}
 }
 
-void dijkstra(graph_t g, map<std::string, int> starts, map<std::string, int> goals, vector<string> nodes, std::map<std::string, int> node2int, std::map<std::string, std::vector<std::string> > stop2trains)
+void dijkstra(graph_t g, vector<string> nodes, std::map<std::string, int> node2int)
 {
-	map<std::string, int> start_list;
-	map<std::string, int> goal_list;
-	for(map<std::string, int>::const_iterator it=starts.begin(); it!=starts.end(); it++)
+	int nStart = node2int["start"];
+	int nGoal = node2int["goal"];
+	cout<<"Start "<<nStart<<endl;
+	cout<<"Goal "<<nGoal<<endl;
+	vertex_descriptor start= vertex(nStart, g);
+	std::vector<vertex_descriptor> p(num_vertices(g));
+	std::vector<int> d(num_vertices(g));
+	dijkstra_shortest_paths(g, start, predecessor_map(&p[0]).distance_map(&d[0]));
+	//Show Path
+	graph_traits < graph_t >::vertex_iterator vi, vend;
+	for (tie(vi, vend) = vertices(g); vi != vend; ++vi) 
 	{
-		vector<std::string> s_trains = stop2trains[it->first];//List of trains that stop at sStart station
-		for(int i=0; i < s_trains.size(); i++)  
+		if (*vi == nGoal)
 		{
-			start_list[it->first + "N_" + s_trains[i]] = it->second;
-			start_list[it->first + "S_" + s_trains[i]] = it->second;
+                	std::cout << "Time: "<< d[*vi] <<" seconds"<<endl;
+                	std::string path;
+                	std::cout << "Path: \n"<< std::endl;
+                	while(nGoal != nStart)
+                	{
+                        	path = nodes[nGoal] + "\n" + path;
+                        	nGoal = p[nGoal];
+                	}
+                	path = nodes[nGoal] + "\n" + path;
+                	std::cout<<path<<endl;
 		}
-	}
+	}	
+}
 
-	for(map<std::string, int>::const_iterator it=goals.begin(); it!=goals.end(); it++)
-	{
-		vector<std::string> g_trains = stop2trains[it->first];//List of trains that stop at goals[x] station
-		for(int i=0; i < g_trains.size(); i++)  
-		{
-			goal_list[it->first + "N_" + g_trains[i]] = it->second;;
-			goal_list[it->first + "S_" + g_trains[i]] = it->second;
-		}
-	}
-
-	int minDistance = 999999;
-	std::vector<vertex_descriptor> minp;
-	int minStart;//Station index
-	int minGoal;//Station index
+void addEdges(map<std::string, int> starts, 
+		map<std::string, int> goals, 
+		vector<Edge> &_edges, 
+		vector<int> &weights, 
+		std::map<std::string, std::vector<std::string> > stop2trains,
+		std::map<std::string, int> node2int)
+{//Add additional edges that link to start and goal nodes
+	std::string tempNode;
 	
-	for(map<std::string, int>::const_iterator s_it=start_list.begin(); s_it!=start_list.end(); s_it++)
-		for(map<std::string, int>::const_iterator g_it=goal_list.begin(); g_it!=goal_list.end(); g_it++)
-		{
-			if(g_it->second < 0)
-				cout<<"Goal:  "<<g_it->second<<endl;
-			if(s_it->second < 0)
-				cout<<"Start:  "<<s_it->second<<endl;
-			int nStart = node2int[s_it->first];
-			int nGoal = node2int[g_it->first];
-			vertex_descriptor start= vertex(nStart, g);
-			std::vector<vertex_descriptor> p(num_vertices(g));
-			std::vector<int> d(num_vertices(g));
+        for(map<std::string, int>::const_iterator it=starts.begin(); it!=starts.end(); it++)
+        {
+                vector<std::string> s_trains = stop2trains[it->first];//List of trains that stop at sStart station
+                for(int i=0; i < s_trains.size(); i++)
+                {
+			tempNode = it->first + "N_" + s_trains[i];
+			_edges.push_back(Edge(node2int[std::string("start")], node2int[tempNode]));
+			weights.push_back(it->second);
+			
+			tempNode = it->first + "S_" + s_trains[i];
+			_edges.push_back(Edge(node2int[std::string("start")], node2int[tempNode]));
+			weights.push_back(it->second);
+                }
+        }
 
-			dijkstra_shortest_paths(g, start, predecessor_map(&p[0]).distance_map(&d[0]));
+        for(map<std::string, int>::const_iterator it=goals.begin(); it!=goals.end(); it++)
+        {
+                vector<std::string> g_trains = stop2trains[it->first];//List of trains that stop at goals[x] station
+                for(int i=0; i < g_trains.size(); i++)
+                {
+			tempNode = it->first + "N_" + g_trains[i];
+                        _edges.push_back(Edge(node2int[tempNode], node2int[std::string("goal")]));
+                        weights.push_back(it->second);
 
-			//Show Path
-			graph_traits < graph_t >::vertex_iterator vi, vend;
-			for (tie(vi, vend) = vertices(g); vi != vend; ++vi) 
-			{
-				if (*vi == nGoal)
-				{
-					int distance = d[*vi];
-					if (d[*vi] < minDistance)
-					{
-						int distance = d[*vi] + s_it->second + g_it->second;
-						if (distance < minDistance)
-						{
-							minDistance = distance;
-							minp = p;
-							minStart = nStart;
-							minGoal = nGoal;
-						}
-					}		
-				}
-			}	
-		}
-	if (minDistance < 999999)
-	{
-		cout<<"Start: "<<nodes[minStart];
-		cout<<", Destination: "<<nodes[minGoal];
-		//std::cout << ", Distance: "<< mind[minGoal] <<endl;
-		std::cout << ", Time: "<< minDistance <<" seconds"<<endl;
-		std::string path;
-		std::cout << "Path: \n"<< std::endl;
-		while(minGoal != minStart)
-		{
-			path = nodes[minGoal] + "\n" + path;
-			minGoal = minp[minGoal];
-		}
-		path = nodes[minGoal] + "\n" + path;
-		std::cout<<path<<endl;
-	}
+                        tempNode = it->first + "S_" + g_trains[i];
+                        _edges.push_back(Edge(node2int[tempNode], node2int[std::string("goal")]));
+                        weights.push_back(it->second);
+                }
+        }
 }
 
 int main(int argc, char **argv)
 {
 	vector<string> nodes;
-	vector<Edge> _edges;
+	vector<Edge> _edges;//Boost has an object name edges so I have to use _edges :(
 	vector<int> weights;
 	std::map<std::string, int> node2int;
 	std::map<std::string, std::vector<std::string> > s2t; //Mapping from stop to list of trains
-	std::map<std::string, Stop> mStop;//Mapping stop id to it's properties
+	std::map<std::string, Stop> mStop;//Mapping stop id to Stop structure
 
+	map<std::string, int> starts;//map the station with walk time to starting location
+	map<std::string, int> goals;
+	float sLat = atof(argv[1]);//Latitude of starting point
+	float sLng = atof(argv[2]);//Longitude of starting point
+	float gLat = atof(argv[3]);//Latitude of goal point
+	float gLng = atof(argv[4]);//Longitude of goal point
+
+	//Loading data from files including nodes, edges, mapping from stop to trains, location of stops
 	loadNodes(NODES_FILE, nodes, node2int);
 	loadEdges(EDGES_FILE, _edges, weights, node2int);
 	loadStop2Trains(STOP_2_TRAINS_FILE, s2t);
 	loadStop(STOPS_FILE, mStop);
 	cout<<"Done loading data..."<<endl;
+
+	mk_starts_goals(sLat, sLng, gLat, gLng, mStop, starts, goals);
+
 	//Initialize graphs's properties
+	//Consider start and goal are two nodes. ID of starting node is "start", ID of goal node is "goal"
+	nodes.push_back("start");
+	node2int["start"] = nodes.size()-1;
+	nodes.push_back("goal");
+	node2int["goal"] = nodes.size()-1;
+
 	const int num_nodes = nodes.size();
+	
+	addEdges(starts, goals, _edges, weights, s2t, node2int);
 	Edge edge_array [_edges.size()];
 	int weight_array [_edges.size()];
 	for(int i=0; i<_edges.size(); i++)
@@ -254,13 +260,6 @@ int main(int argc, char **argv)
 
 	graph_t g(edge_array, edge_array + num_arcs, weight_array, num_nodes);
 	property_map<graph_t, edge_weight_t>::type weightmap = get(edge_weight, g);
-	map<std::string, int> starts;//map the station with walk time to starting location
-	map<std::string, int> goals;
-	float sLat = atof(argv[1]);//Latitude of starting point
-	float sLng = atof(argv[2]);//Longitude of starting point
-	float gLat = atof(argv[3]);//Latitude of goal point
-	float gLng = atof(argv[4]);//Longitude of goal point
-	mk_starts_goals(sLat, sLng, gLat, gLng, mStop, starts, goals);
-	dijkstra(g, starts, goals, nodes, node2int, s2t);
+	dijkstra(g, nodes, node2int);
 	return EXIT_SUCCESS;
 }
