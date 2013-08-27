@@ -82,7 +82,7 @@ void loadNodes(std::string f, std::vector<string> &nodes, std::map<std::string, 
 	std::ifstream  in(f.c_str());
 	std::string line; 
 	int idx = 1;
-	nodes.push_back("Not available"); //There is no node with index 0
+	nodes.push_back("NA");//There is no node with index 0
 	while(std::getline(in,line))
 	{
 		nodes.push_back(line);   
@@ -106,8 +106,6 @@ void loadEdges(std::string f, vector<Edge> &edges, vector<int> &weights, std::ma
 		std::getline(lineStream, node1, '\t');
 		std::getline(lineStream, node2, '\t');
 		std::getline(lineStream, weight, '\t');
-		if (node2int[node1] == 0) cout<<"ERRRRRRRRRRRRRRRRRRRR"<<node1<<endl;
-		if (node2int[node2] == 0) cout<<"ERRRRRRRRRRRRRRRRRRRR"<<node2<<endl;
 		Edge edge(node2int[node1], node2int[node2]);
 		edges.push_back(edge);
 		weights.push_back(atoi(weight.c_str()));
@@ -139,7 +137,6 @@ void find_near_station(float sLat, float sLng, float gLat, float gLng, map<std::
 		if (start_dist < 1.5) //it takes roundly 20 mins to walk 1.5 * sqrt(2) km
 		{
 			starts[it->first] = (int) (start_dist/5*3600);
-			std::cout<<it->first<<"--"<<start_dist<<"--"<<(int) (start_dist/5*3600)<<endl;
 		}
 		else
 		{
@@ -159,13 +156,8 @@ void dijkstra(graph_t g, int nStart, int nGoal, vector<string> nodes, std::map<s
 	//Show Path
 	std::cout << "Time: "<< d[nGoal]/60 <<" minutes"<<endl;
 	std::string path;
-	cout<<p[nGoal]<<endl;
-	cout<<nGoal<<endl;
-	cout<<nodes[nGoal]<<endl;
-	cout<<nodes[nGoal]<<"--"<<nodes[p[nGoal]]<<endl;
 	while(nGoal != nStart)
 	{
-		cout<<nGoal<<endl;
 		path = nodes[nGoal] + "\n" + path;
 		nGoal = p[nGoal];
 	}
@@ -192,14 +184,10 @@ void addEdges(int nStart,
 			tempNode = it->first + "N_" + s_trains[i];
 			_edges.push_back(Edge(nStart, node2int[tempNode]));
 			weights.push_back(it->second);
-			cout<<"start - "<<tempNode<<endl;
-			if(node2int[tempNode] == 0) cout<<"ERRRRRRRRRRRRRRRRRRRR"<<tempNode;
 
 			tempNode = it->first + "S_" + s_trains[i];
 			_edges.push_back(Edge(nStart, node2int[tempNode]));
 			weights.push_back(it->second);
-			cout<<"start - "<<tempNode<<endl;
-			if(node2int[tempNode] == 0) cout<<"ERRRRRRRRRRRRRRRRRRRR"<<tempNode;
 		}
 	}
 
@@ -211,14 +199,10 @@ void addEdges(int nStart,
 			tempNode = it->first + "N_" + g_trains[i];
 			_edges.push_back(Edge(node2int[tempNode], nGoal));
 			weights.push_back(it->second);
-			cout<<tempNode<<"--goal"<<endl;
-			if(node2int[tempNode] == 0) cout<<"ERRRRRRRRRRRRRRRRRRRR"<<tempNode;
 
 			tempNode = it->first + "S_" + g_trains[i];
 			_edges.push_back(Edge(node2int[tempNode], nGoal));
 			weights.push_back(it->second);
-			cout<<tempNode<<"--goal"<<endl;
-			if(node2int[tempNode] == 0) cout<<"ERRRRRRRRRRRRRRRRRRRR"<<tempNode;
 		}
 	}
 }
@@ -249,7 +233,6 @@ int main(int argc, char **argv)
 	nodes.push_back("goal");
 	const int nGoal = nodes.size()-1;
 	node2int["goal"] = nGoal;
-	cout<<"TestTest: "<<node2int["Test"]<<endl;
 
 	const int num_nodes = nodes.size();
 	

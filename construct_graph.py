@@ -75,6 +75,10 @@ for stop in stop2train.keys():
 					node12 = stop + "S_" + train1
                                         node21 = stop + "N_" + train2
 					node22 = stop + "S_" + train2
+					nodes.add(node11)
+					nodes.add(node12)
+					nodes.add(node21)
+					nodes.add(node22)
                                         edge1 = node11 + "\t" + node21
 					edge2 = node11 + "\t" + node22
 					edge3 = node12 + "\t" + node21 
