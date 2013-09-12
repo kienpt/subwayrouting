@@ -10,6 +10,7 @@
 #include <boost/graph/graph_traits.hpp>
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/dijkstra_shortest_paths.hpp>
+#include <boost/lexical_cast.hpp>
 
 #define EDGES_FILE "edges.txt"
 #define NODES_FILE "nodes.txt"
@@ -91,7 +92,7 @@ void loadNodes(std::string f, std::vector<string> &nodes, std::map<std::string, 
 	}
 }
 
-void loadEdges(std::string f, vector<Edge> &edges, vector<int> &weights, std::map<std::string, int> &node2int)
+void loadEdges(std::string f, vector<Edge> &edges, vector<int> &weights, std::map<std::string, int> &node2int, std::map<Edge, int> &e2w)
 {
 	//load all edges from file
 	std::ifstream  in(f.c_str());
@@ -99,16 +100,19 @@ void loadEdges(std::string f, vector<Edge> &edges, vector<int> &weights, std::ma
 
 	string node1;
 	string node2;
-	string weight;
+	string sWeight;
+	int nWeight;
 	while(std::getline(in, line))
 	{
 		std::stringstream  lineStream(line);
 		std::getline(lineStream, node1, '\t');
 		std::getline(lineStream, node2, '\t');
-		std::getline(lineStream, weight, '\t');
+		std::getline(lineStream, sWeight, '\t');
 		Edge edge(node2int[node1], node2int[node2]);
 		edges.push_back(edge);
-		weights.push_back(atoi(weight.c_str()));
+		nWeight = atoi(sWeight.c_str());
+		weights.push_back(nWeight);
+		e2w[edge] = nWeight;
 	}
 }
 
@@ -147,7 +151,7 @@ void find_near_station(float sLat, float sLng, float gLat, float gLng, map<std::
 	}
 }
 
-void dijkstra(graph_t g, int nStart, int nGoal, vector<string> nodes, std::map<std::string, int> node2int)
+void dijkstra(graph_t g, int nStart, int nGoal, vector<string> nodes, std::map<std::string, int> node2int, std::map<Edge, int> e2w)
 {
 	vertex_descriptor start= vertex(nStart, g);
 	std::vector<vertex_descriptor> p(num_vertices(g));
@@ -155,13 +159,22 @@ void dijkstra(graph_t g, int nStart, int nGoal, vector<string> nodes, std::map<s
 	dijkstra_shortest_paths(g, start, predecessor_map(&p[0]).distance_map(&d[0]));
 	//Show Path
 	std::cout << "Time: "<< d[nGoal]/60 <<" minutes"<<endl;
-	std::string path;
-	while(nGoal != nStart)
+	std::string path = nodes[nGoal];
+	int preNode = nGoal;
+	int curNode = nGoal;
+	/*
+	for(std::map<Edge, int>::iterator it = e2w.begin(); it != e2w.end(); it++)
 	{
-		path = nodes[nGoal] + "\n" + path;
-		nGoal = p[nGoal];
+		std::cout<<it->first.first<<", "<<it->first.second<<", "<<it->second<<endl;
+	}*/
+	while(curNode != nStart)
+	{
+		curNode = p[curNode];
+		Edge e(curNode, preNode);
+		std::string edge = nodes[curNode] + "--" + nodes[preNode];
+		path = nodes[curNode] + ": " + edge + ": " + boost::lexical_cast<std::string>(e2w[e]) + "\n" + path;
+		preNode = curNode;
 	}
-	path = nodes[nGoal] + "\n" + path;
 	std::cout<<"Path: "<<endl<<path<<endl;
 }
 
@@ -172,9 +185,11 @@ void addEdges(int nStart,
 		vector<Edge> &_edges, 
 		vector<int> &weights, 
 		std::map<std::string, std::vector<std::string> > stop2trains,
-		std::map<std::string, int> node2int)
+		std::map<std::string, int> node2int,
+		std::map<Edge, int> &e2w)
 {//Add additional edges that link to start and goal nodes
 	std::string tempNode;
+	Edge e;
 
 	for(map<std::string, int>::const_iterator it=starts.begin(); it!=starts.end(); it++)
 	{
@@ -182,12 +197,16 @@ void addEdges(int nStart,
 		for(int i=0; i < s_trains.size(); i++)
 		{
 			tempNode = it->first + "N_" + s_trains[i];
-			_edges.push_back(Edge(nStart, node2int[tempNode]));
+			e = Edge(nStart, node2int[tempNode]);
+			_edges.push_back(e);
 			weights.push_back(it->second);
+			e2w[e] = it->second;
 
 			tempNode = it->first + "S_" + s_trains[i];
-			_edges.push_back(Edge(nStart, node2int[tempNode]));
+			e = Edge(nStart, node2int[tempNode]);
+			_edges.push_back(e);
 			weights.push_back(it->second);
+			e2w[e] = it->second;
 		}
 	}
 
@@ -197,12 +216,16 @@ void addEdges(int nStart,
 		for(int i=0; i < g_trains.size(); i++)
 		{
 			tempNode = it->first + "N_" + g_trains[i];
-			_edges.push_back(Edge(node2int[tempNode], nGoal));
+			e = Edge(node2int[tempNode], nGoal);
+			_edges.push_back(e);
 			weights.push_back(it->second);
+			e2w[e] = it->second;
 
 			tempNode = it->first + "S_" + g_trains[i];
-			_edges.push_back(Edge(node2int[tempNode], nGoal));
+			e = Edge(node2int[tempNode], nGoal);
+			_edges.push_back(e);
 			weights.push_back(it->second);
+			e2w[e] = it->second;
 		}
 	}
 }
@@ -215,11 +238,11 @@ int main(int argc, char **argv)
 	std::map<std::string, int> node2int;
 	std::map<std::string, std::vector<std::string> > s2t; //Mapping from stop to list of trains
 	std::map<std::string, Stop> mStop;//Mapping stop id to Stop structure
-
+	std::map<Edge, int> e2w; //Edge to weight
 	
 	//Loading data from files including nodes, edges, mapping from stop to trains, location of stops
 	loadNodes(NODES_FILE, nodes, node2int);
-	loadEdges(EDGES_FILE, _edges, weights, node2int);
+	loadEdges(EDGES_FILE, _edges, weights, node2int, e2w);
 	loadStop2Trains(STOP_2_TRAINS_FILE, s2t);
 	loadStop(STOPS_FILE, mStop);
 	cout<<"Done loading data."<<endl;
@@ -244,7 +267,7 @@ int main(int argc, char **argv)
 	float gLng = atof(argv[4]);//Longitude of goal point
 	find_near_station(sLat, sLng, gLat, gLng, mStop, starts, goals);//Find near-by station
 
-	addEdges(nStart, nGoal, starts, goals, _edges, weights, s2t, node2int);
+	addEdges(nStart, nGoal, starts, goals, _edges, weights, s2t, node2int, e2w);
 	Edge edge_array [_edges.size()];
 	int weight_array [_edges.size()];
 	for(int i=0; i<_edges.size(); i++)
@@ -257,6 +280,6 @@ int main(int argc, char **argv)
 	graph_t g(edge_array, edge_array + num_arcs, weight_array, num_nodes);
 	property_map<graph_t, edge_weight_t>::type weightmap = get(edge_weight, g);
 
-	dijkstra(g, nStart, nGoal, nodes, node2int);
+	dijkstra(g, nStart, nGoal, nodes, node2int, e2w);
 	return EXIT_SUCCESS;
 }
