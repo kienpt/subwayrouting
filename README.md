@@ -10,4 +10,6 @@ python add_transfer.py transfers.txt nodes.txt (output: edges.txt - add more edg
 
 * It is noted that stop_extracted.csv and direction_extracted.csv are not used yet
 
-* Run a test: ./a.out 40.574416 -73.978575 40.690645 -73.981934
+* Run a test: 
+./a.out 40.574416 -73.978575 40.690645 -73.981934
+./a.out 40.627186, -74.0224549 40.6722028, -74.0111417

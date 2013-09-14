@@ -15,6 +15,7 @@
 #define EDGES_FILE "edges.txt"
 #define NODES_FILE "nodes.txt"
 #define STOP_2_TRAINS_FILE "stop2train.csv"
+#define STOP_2_TIMES_FILE "stop2times.txt"
 #define STOPS_FILE "stops.txt"
 
 using namespace boost;
@@ -24,12 +25,21 @@ typedef std::pair<int, int> Edge;
 typedef adjacency_list < listS, vecS, directedS, no_property, property < edge_weight_t, int > > graph_t;
 typedef graph_traits < graph_t >::vertex_descriptor vertex_descriptor;
 typedef graph_traits < graph_t >::edge_descriptor edge_descriptor;
-struct Stop
+struct Address
 {
 	float _lat;
 	float _lng;
 	std::string _address;
 };
+
+struct Stop
+{
+	std::string _stopID;
+	int _time;
+
+	Stop(std::string stopID):_stopID(stopID){};
+};
+typedef std::vector<Stop> Route;
 
 float distance(float lat1, float lng1, float lat2, float lng2)
 {//Compute distance between two points in GPS coordinate system
@@ -45,7 +55,19 @@ float distance(float lat1, float lng1, float lat2, float lng2)
 	return dist;
 }
 
-void loadStop(std::string f, map<std::string, Stop> &mStop)
+int searchTime(std::vector<int> times, int key)
+{//In times, find the closest and greater number to key
+//Because size of times is small, then using brute force is good enough
+//It is noted that numbers in times are sorted
+	for(int i = 0; i < times.size(); i++)
+	{
+		if (times[i] > key)
+			return times[i];
+	}
+	return times[0];
+}
+
+void loadStop(std::string f, map<std::string, Address> &stop2addr)
 {
 	std::ifstream  in(f.c_str());
 	std::string line;
@@ -67,11 +89,11 @@ void loadStop(std::string f, map<std::string, Stop> &mStop)
 			std::getline(lineStream, slat, ',');
 			std::getline(lineStream, slng, ',');
 
-			Stop aStop;
-			aStop._address = address;
-			aStop._lat = atof(slat.c_str());
-			aStop._lng = atof(slng.c_str());
-			mStop[stopID] = aStop;
+			Address addr;
+			addr._address = address;
+			addr._lat = atof(slat.c_str());
+			addr._lng = atof(slng.c_str());
+			stop2addr[stopID] = addr;
 		}
 		count++;
 	}
@@ -92,7 +114,7 @@ void loadNodes(std::string f, std::vector<string> &nodes, std::map<std::string, 
 	}
 }
 
-void loadEdges(std::string f, vector<Edge> &edges, vector<int> &weights, std::map<std::string, int> &node2int, std::map<Edge, int> &e2w)
+void loadEdges(std::string f, vector<Edge> &edges, vector<int> &weights, std::map<std::string, int> &node2int, std::map<Edge, int> &edge2weight)
 {
 	//load all edges from file
 	std::ifstream  in(f.c_str());
@@ -112,7 +134,7 @@ void loadEdges(std::string f, vector<Edge> &edges, vector<int> &weights, std::ma
 		edges.push_back(edge);
 		nWeight = atoi(sWeight.c_str());
 		weights.push_back(nWeight);
-		e2w[edge] = nWeight;
+		edge2weight[edge] = nWeight;
 	}
 }
 
@@ -133,12 +155,30 @@ void loadStop2Trains(std::string f, std::map<std::string, std::vector<std::strin
 	}
 }
 
-void find_near_station(float sLat, float sLng, float gLat, float gLng, map<std::string, Stop> mStop, map<std::string, int> &starts, map<std::string, int> &goals)
+void loadStop2Times(std::string f, std::map<std::string, std::vector<int> > &stop2times)
 {
-	for(map<std::string, Stop>::const_iterator it=mStop.begin(); it!=mStop.end(); it++)
+	std::ifstream in(f.c_str());
+        string line;
+        string stop;
+        string time;
+        while(std::getline(in, line))
+        {
+                std::stringstream lineStream(line);
+                std::getline(lineStream, stop, '\t');
+                std::vector<int> times;
+                while(std::getline(lineStream, time, '\t'))
+                        times.push_back(atoi(time.c_str()));
+                stop2times[stop] = times;
+        }
+
+}
+
+void find_near_station(float sLat, float sLng, float gLat, float gLng, map<std::string, Address> stop2addr, map<std::string, int> &starts, map<std::string, int> &goals)
+{
+	for(map<std::string, Address>::const_iterator it=stop2addr.begin(); it!=stop2addr.end(); it++)
 	{
 		float start_dist = distance(sLat, sLng, it->second._lat, it->second._lng);
-		if (start_dist < 1.5) //it takes roundly 20 mins to walk 1.5 * sqrt(2) km
+		if (start_dist<1.5) //it takes roundly 20 mins to walk 1.5 * sqrt(2) km
 		{
 			starts[it->first] = (int) (start_dist/5*3600);
 		}
@@ -151,7 +191,13 @@ void find_near_station(float sLat, float sLng, float gLat, float gLng, map<std::
 	}
 }
 
-void dijkstra(graph_t g, int nStart, int nGoal, vector<string> nodes, std::map<std::string, int> node2int, std::map<Edge, int> e2w)
+void dijkstra(const graph_t &g, 
+		int nStart, int nGoal, 
+		const vector<string> &nodes, 
+		const std::map<std::string, int> &node2int, 
+		const std::map<Edge, int> &edge2weight,
+		const std::map<std::string, std::vector<int> > &stop2time,
+		int startTime = 32400)//32400 == 9:00:00
 {
 	vertex_descriptor start= vertex(nStart, g);
 	std::vector<vertex_descriptor> p(num_vertices(g));
@@ -162,70 +208,80 @@ void dijkstra(graph_t g, int nStart, int nGoal, vector<string> nodes, std::map<s
 	std::string path = nodes[nGoal];
 	int preNode = nGoal;
 	int curNode = nGoal;
-	/*
-	for(std::map<Edge, int>::iterator it = e2w.begin(); it != e2w.end(); it++)
-	{
-		std::cout<<it->first.first<<", "<<it->first.second<<", "<<it->second<<endl;
-	}*/
+	Route route;
+	std::vector<int> weights;
+	route.push_back(Stop(nodes[nGoal]));
+	weights.push_back(0);
 	while(curNode != nStart)
+        {
+                curNode = p[curNode];
+		Stop stop(nodes[curNode]); 
+		route.push_back(stop);
+                Edge e(curNode, preNode);
+		weights.push_back(edge2weight.at(e));
+                std::string edge = nodes[curNode] + "--" + nodes[preNode];
+                path = nodes[curNode] + ": " + edge + ": " + boost::lexical_cast<std::string>(edge2weight.at(e)) + "\n" + path;
+                preNode = curNode;
+        }
+	route.back()._time = searchTime(stop2time[], startTime + weights.back());
+	std::cout<<route.back()._stopID<<"--"<<route.back()._time<<endl;
+	for(int i=route.size()-2; i>=0; i--)
 	{
-		curNode = p[curNode];
-		Edge e(curNode, preNode);
-		std::string edge = nodes[curNode] + "--" + nodes[preNode];
-		path = nodes[curNode] + ": " + edge + ": " + boost::lexical_cast<std::string>(e2w[e]) + "\n" + path;
-		preNode = curNode;
+		route[i]._time = route[i+1]._time + weights[i+1];
+		std::cout<<route[i]._stopID<<"--"<<route[i]._time<<endl;
 	}
+	
 	std::cout<<"Path: "<<endl<<path<<endl;
 }
 
 void addEdges(int nStart,
 		int nGoal,
-		map<std::string, int> starts, 
-		map<std::string, int> goals, 
+		const map<std::string, int> &starts, 
+		const map<std::string, int> &goals, 
 		vector<Edge> &_edges, 
 		vector<int> &weights, 
-		std::map<std::string, std::vector<std::string> > stop2trains,
+		std::map<std::string, std::vector<std::string> > stop2train,
 		std::map<std::string, int> node2int,
-		std::map<Edge, int> &e2w)
+		std::map<Edge, int> &edge2weight)
 {//Add additional edges that link to start and goal nodes
 	std::string tempNode;
 	Edge e;
 
 	for(map<std::string, int>::const_iterator it=starts.begin(); it!=starts.end(); it++)
 	{
-		vector<std::string> s_trains = stop2trains[it->first];//List of trains that stop at sStart station
+		vector<std::string> s_trains = stop2train[it->first];//List of trains that stop at sStart station
 		for(int i=0; i < s_trains.size(); i++)
 		{
 			tempNode = it->first + "N_" + s_trains[i];
 			e = Edge(nStart, node2int[tempNode]);
 			_edges.push_back(e);
 			weights.push_back(it->second);
-			e2w[e] = it->second;
+			edge2weight[e] = it->second;
 
 			tempNode = it->first + "S_" + s_trains[i];
 			e = Edge(nStart, node2int[tempNode]);
 			_edges.push_back(e);
 			weights.push_back(it->second);
-			e2w[e] = it->second;
+			edge2weight[e] = it->second;
 		}
 	}
 
 	for(map<std::string, int>::const_iterator it=goals.begin(); it!=goals.end(); it++)
 	{
-		vector<std::string> g_trains = stop2trains[it->first];//List of trains that stop at goals[x] station
+		vector<std::string> g_trains = stop2train[it->first];//List of trains that stop at goals[x] station
 		for(int i=0; i < g_trains.size(); i++)
 		{
 			tempNode = it->first + "N_" + g_trains[i];
 			e = Edge(node2int[tempNode], nGoal);
 			_edges.push_back(e);
 			weights.push_back(it->second);
-			e2w[e] = it->second;
+			edge2weight[e] = it->second;
 
 			tempNode = it->first + "S_" + g_trains[i];
 			e = Edge(node2int[tempNode], nGoal);
 			_edges.push_back(e);
 			weights.push_back(it->second);
-			e2w[e] = it->second;
+			edge2weight[e] = it->second;
 		}
 	}
 }
@@ -236,15 +292,17 @@ int main(int argc, char **argv)
 	vector<Edge> _edges;//Boost has an object name edges so I have to use _edges :(
 	vector<int> weights;
 	std::map<std::string, int> node2int;
-	std::map<std::string, std::vector<std::string> > s2t; //Mapping from stop to list of trains
-	std::map<std::string, Stop> mStop;//Mapping stop id to Stop structure
-	std::map<Edge, int> e2w; //Edge to weight
+	std::map<std::string, std::vector<std::string> > stop2train; //Mapping from stop to list of trains
+	std::map<std::string, std::vector<int> > stop2time; //Mapping stop_train to time when the train stops
+	std::map<std::string, Address> stop2addr;//Mapping stop id to Address structure
+	std::map<Edge, int> edge2weight; //Edge to weight
 	
 	//Loading data from files including nodes, edges, mapping from stop to trains, location of stops
 	loadNodes(NODES_FILE, nodes, node2int);
-	loadEdges(EDGES_FILE, _edges, weights, node2int, e2w);
-	loadStop2Trains(STOP_2_TRAINS_FILE, s2t);
-	loadStop(STOPS_FILE, mStop);
+	loadEdges(EDGES_FILE, _edges, weights, node2int, edge2weight);
+	loadStop2Trains(STOP_2_TRAINS_FILE, stop2train);
+	loadStop2Times(STOP_2_TIMES_FILE, stop2time);
+	loadStop(STOPS_FILE, stop2addr);
 	cout<<"Done loading data."<<endl;
 
 	//Initialize graphs's properties
@@ -265,9 +323,9 @@ int main(int argc, char **argv)
 	float sLng = atof(argv[2]);//Longitude of starting point
 	float gLat = atof(argv[3]);//Latitude of goal point
 	float gLng = atof(argv[4]);//Longitude of goal point
-	find_near_station(sLat, sLng, gLat, gLng, mStop, starts, goals);//Find near-by station
+	find_near_station(sLat, sLng, gLat, gLng, stop2addr, starts, goals);//Find near-by station
 
-	addEdges(nStart, nGoal, starts, goals, _edges, weights, s2t, node2int, e2w);
+	addEdges(nStart, nGoal, starts, goals, _edges, weights, stop2train, node2int, edge2weight);
 	Edge edge_array [_edges.size()];
 	int weight_array [_edges.size()];
 	for(int i=0; i<_edges.size(); i++)
@@ -280,6 +338,6 @@ int main(int argc, char **argv)
 	graph_t g(edge_array, edge_array + num_arcs, weight_array, num_nodes);
 	property_map<graph_t, edge_weight_t>::type weightmap = get(edge_weight, g);
 
-	dijkstra(g, nStart, nGoal, nodes, node2int, e2w);
+	dijkstra(g, nStart, nGoal, nodes, node2int, edge2weight, stop2time);
 	return EXIT_SUCCESS;
 }
