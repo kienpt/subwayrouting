@@ -214,8 +214,7 @@ void dijkstra(const graph_t &g,
 	std::vector<int> d(num_vertices(g));
 	dijkstra_shortest_paths(g, start, predecessor_map(&p[0]).distance_map(&d[0]));
 	//Show Path
-	std::cout << "Time: "<< d[nGoal]/60 <<" minutes"<<endl;
-	std::string path = nodes[nGoal];
+	std::cout << "Time (Fix transfer time): "<< d[nGoal]/60 <<" minutes"<<endl;
 	int preNode = nGoal;
 	int curNode = nGoal;
 	Route route;
@@ -224,27 +223,28 @@ void dijkstra(const graph_t &g,
 	weights.push_back(0);
 	while(curNode != nStart)
         {
+	//route contains sequence of stops in reverse order
+	//The first element is "Goal" and the last element is "Start"
                 curNode = p[curNode];
 		Stop stop(nodes[curNode]); 
 		route.push_back(stop);
                 Edge e(curNode, preNode);
 		weights.push_back(edge2weight.at(e));
-                std::string edge = nodes[curNode] + "--" + nodes[preNode];
-                path = nodes[curNode] + ": " + edge + ": " + boost::lexical_cast<std::string>(edge2weight.at(e)) + "\n" + path;
                 preNode = curNode;
         }
-//	std::cout<<"Test: "<<stop2time.size()<<endl;
+
 	route.back()._time = searchTime(stop2time.at(route[route.size()-2]._stopID), startTime + weights.back());
-//	std::cout<<"Start: "<<route[route.size()-2]._stopID<<endl;
 	route.back()._time = startTime + weights.back();
 	std::cout<<route.back()._stopID<<"--"<<second2hms(route.back()._time)<<endl;
 	for(int i=route.size()-2; i>=0; i--)
 	{
-		route[i]._time = route[i+1]._time + weights[i+1];
+		if (weights[i+1] == TRANSFER_TIME)
+			route[i]._time = searchTime(stop2time.at(route[i]._stopID), route[i+1]._time);	
+		else
+			route[i]._time = route[i+1]._time + weights[i+1];
 		std::cout<<route[i]._stopID<<"--"<<second2hms(route[i]._time)<<endl;
 	}
-	
-	std::cout<<"Path: "<<endl<<path<<endl;
+	std::cout <<"Time: "<<(route[0]._time - route.back()._time)/60<<" minutes"<<endl;
 }
 
 void addEdges(int nStart,
