@@ -17,6 +17,7 @@
 #define STOP_2_TRAINS_FILE "stop2train.csv"
 #define STOP_2_TIMES_FILE "stop2times.txt"
 #define STOPS_FILE "stops.txt"
+#define TRANSFER_TIME 609
 
 using namespace boost;
 using namespace std;
@@ -67,6 +68,15 @@ int searchTime(std::vector<int> times, int key)
 	return times[0];
 }
 
+std::string second2hms(int t)
+{//Convert second to hour:minute:second
+	std::string h = boost::lexical_cast<string>(t/3600);
+	int hm = t%3600;
+	std::string m = boost::lexical_cast<string>(hm/60);
+	std::string s = boost::lexical_cast<string>(hm%60);
+	std::string hms = h + ":" + m + ":" + s;
+	return hms;
+}
 void loadStop(std::string f, map<std::string, Address> &stop2addr)
 {
 	std::ifstream  in(f.c_str());
@@ -223,12 +233,15 @@ void dijkstra(const graph_t &g,
                 path = nodes[curNode] + ": " + edge + ": " + boost::lexical_cast<std::string>(edge2weight.at(e)) + "\n" + path;
                 preNode = curNode;
         }
-	route.back()._time = searchTime(stop2time[], startTime + weights.back());
-	std::cout<<route.back()._stopID<<"--"<<route.back()._time<<endl;
+//	std::cout<<"Test: "<<stop2time.size()<<endl;
+	route.back()._time = searchTime(stop2time.at(route[route.size()-2]._stopID), startTime + weights.back());
+//	std::cout<<"Start: "<<route[route.size()-2]._stopID<<endl;
+	route.back()._time = startTime + weights.back();
+	std::cout<<route.back()._stopID<<"--"<<second2hms(route.back()._time)<<endl;
 	for(int i=route.size()-2; i>=0; i--)
 	{
 		route[i]._time = route[i+1]._time + weights[i+1];
-		std::cout<<route[i]._stopID<<"--"<<route[i]._time<<endl;
+		std::cout<<route[i]._stopID<<"--"<<second2hms(route[i]._time)<<endl;
 	}
 	
 	std::cout<<"Path: "<<endl<<path<<endl;
@@ -302,6 +315,7 @@ int main(int argc, char **argv)
 	loadEdges(EDGES_FILE, _edges, weights, node2int, edge2weight);
 	loadStop2Trains(STOP_2_TRAINS_FILE, stop2train);
 	loadStop2Times(STOP_2_TIMES_FILE, stop2time);
+//	std::cout<<"STOP 2 TIME"<<stop2time.size()<<endl;
 	loadStop(STOPS_FILE, stop2addr);
 	cout<<"Done loading data."<<endl;
 
