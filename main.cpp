@@ -12,20 +12,22 @@
 #include <boost/graph/dijkstra_shortest_paths.hpp>
 #include <boost/lexical_cast.hpp>
 
-#define EDGES_FILE "edges.txt"
-#define NODES_FILE "nodes.txt"
-#define STOP_2_TRAINS_FILE "stop2train.csv"
-#define STOP_2_TIMES_FILE "stop2times.txt"
+#define EDGES_FILE "edges-wkd.txt"
+#define NODES_FILE "nodes-wkd.txt"
+#define STOP_2_TRAINS_FILE "stop2trains-wkd.txt"
+#define STOP_2_TIMES_FILE "stop2times-wkd.txt"
 #define STOPS_FILE "stops.txt"
 #define TRANSFER_TIME 609
 
 using namespace boost;
 using namespace std;
-
+typedef std::pair<int, std::string> Time_Trip;//first: time, second: tripID
 typedef std::pair<int, int> Edge;
 typedef adjacency_list < listS, vecS, directedS, no_property, property < edge_weight_t, int > > graph_t;
 typedef graph_traits < graph_t >::vertex_descriptor vertex_descriptor;
 typedef graph_traits < graph_t >::edge_descriptor edge_descriptor;
+
+
 struct Address
 {
 	float _lat;
@@ -36,8 +38,9 @@ struct Address
 struct Stop
 {
 	std::string _stopID;
-	int _time;
+	Time_Trip _timetrip;	
 
+	//Initialize
 	Stop(std::string stopID):_stopID(stopID){};
 };
 typedef std::vector<Stop> Route;
@@ -56,16 +59,16 @@ float distance(float lat1, float lng1, float lat2, float lng2)
 	return dist;
 }
 
-int searchTime(std::vector<int> times, int key)
-{//In times, find the closest and greater number to key
-//Because size of times is small, then using brute force is good enough
-//It is noted that numbers in times are sorted
-	for(int i = 0; i < times.size(); i++)
+Time_Trip searchTime(std::vector<Time_Trip> tt, int key)
+{//In tt, find the closest element to key
+//Because size of tt is small, then using brute force is good enough
+//It is noted that element in tt are sorted wrt time
+	for(int i = 0; i < tt.size(); i++)
 	{
-		if (times[i] > key)
-			return times[i];
+		if (tt[i].first > key)
+			return tt[i];
 	}
-	return times[0];
+	return tt[0];
 }
 
 std::string second2hms(int t)
@@ -130,9 +133,9 @@ void loadEdges(std::string f, vector<Edge> &edges, vector<int> &weights, std::ma
 	std::ifstream  in(f.c_str());
 	string line;
 
-	string node1;
-	string node2;
-	string sWeight;
+	std::string node1;
+	std::string node2;
+	std::string sWeight;
 	int nWeight;
 	while(std::getline(in, line))
 	{
@@ -151,9 +154,9 @@ void loadEdges(std::string f, vector<Edge> &edges, vector<int> &weights, std::ma
 void loadStop2Trains(std::string f, std::map<std::string, std::vector<std::string> > &stop2trains)
 {
 	std::ifstream in(f.c_str());
-	string line;
-	string stop;
-	string train;
+	std::string line;
+	std::string stop;
+	std::string train;
 	while(std::getline(in, line))
 	{
 		std::stringstream lineStream(line);
@@ -165,20 +168,25 @@ void loadStop2Trains(std::string f, std::map<std::string, std::vector<std::strin
 	}
 }
 
-void loadStop2Times(std::string f, std::map<std::string, std::vector<int> > &stop2times)
+void loadStop2Times(std::string f, std::map<std::string, std::vector<Time_Trip> > &stop2times)
 {
 	std::ifstream in(f.c_str());
-        string line;
-        string stop;
-        string time;
+        std::string line;
+        std::string stop;
+        std::string time;
+	std::string tripID;
         while(std::getline(in, line))
         {
                 std::stringstream lineStream(line);
                 std::getline(lineStream, stop, '\t');
-                std::vector<int> times;
+                std::vector<Time_Trip> tt;
                 while(std::getline(lineStream, time, '\t'))
-                        times.push_back(atoi(time.c_str()));
-                stop2times[stop] = times;
+		{
+			std::getline(lineStream, tripID, '\t');
+                        tt.push_back(Time_Trip(atoi(time.c_str()), tripID));
+		}
+		
+                stop2times[stop] = tt;
         }
 
 }
@@ -206,8 +214,8 @@ void dijkstra(const graph_t &g,
 		const vector<string> &nodes, 
 		const std::map<std::string, int> &node2int, 
 		const std::map<Edge, int> &edge2weight,
-		const std::map<std::string, std::vector<int> > &stop2time,
-		int startTime = 32400)//32400 == 9:00:00
+		const std::map<std::string, std::vector<Time_Trip> > &stop2time,
+		int startTime = 32400)//32400 == 9:00:00 - default time
 {
 	vertex_descriptor start= vertex(nStart, g);
 	std::vector<vertex_descriptor> p(num_vertices(g));
@@ -219,12 +227,10 @@ void dijkstra(const graph_t &g,
 	int curNode = nGoal;
 	Route route;
 	std::vector<int> weights;
-	route.push_back(Stop(nodes[nGoal]));
+	route.push_back(Stop(nodes[nGoal]));//route = (Goal, Stop n, Stop n-1, Stop n-2, ..., Stop 1, Start)
 	weights.push_back(0);
 	while(curNode != nStart)
         {
-	//route contains sequence of stops in reverse order
-	//The first element is "Goal" and the last element is "Start"
                 curNode = p[curNode];
 		Stop stop(nodes[curNode]); 
 		route.push_back(stop);
@@ -232,19 +238,25 @@ void dijkstra(const graph_t &g,
 		weights.push_back(edge2weight.at(e));
                 preNode = curNode;
         }
-
-	route.back()._time = searchTime(stop2time.at(route[route.size()-2]._stopID), startTime + weights.back());
-	route.back()._time = startTime + weights.back();
-	std::cout<<route.back()._stopID<<"--"<<second2hms(route.back()._time)<<endl;
+	Stop firstStop = route[route.size()-2];//Stop 1
+	route.back()._timetrip = searchTime(stop2time.at(firstStop._stopID), startTime + weights.back());
+//	std::cout<<route.back()._timetrip.first<<"--"<<route.back()._timetrip.second<<endl;
+	//route.back()._timetrip.first = startTime + weights.back();
+	std::string tripID = route.back()._timetrip.second;
+	std::cout<<route.back()._stopID<<"--"<<second2hms(route.back()._timetrip.first)<<"--"<<tripID<<endl;
 	for(int i=route.size()-2; i>=0; i--)
 	{
 		if (weights[i+1] == TRANSFER_TIME)
-			route[i]._time = searchTime(stop2time.at(route[i]._stopID), route[i+1]._time);	
+		{
+			
+			route[i]._timetrip = searchTime(stop2time.at(route[i]._stopID), route[i+1]._timetrip.first);
+			tripID = route[i]._timetrip.second;
+		}
 		else
-			route[i]._time = route[i+1]._time + weights[i+1];
-		std::cout<<route[i]._stopID<<"--"<<second2hms(route[i]._time)<<endl;
+			route[i]._timetrip.first = route[i+1]._timetrip.first + weights[i+1];
+		std::cout<<route[i]._stopID<<"--"<<second2hms(route[i]._timetrip.first)<<"--"<<tripID<<endl;
 	}
-	std::cout <<"Time: "<<(route[0]._time - route.back()._time)/60<<" minutes"<<endl;
+	std::cout <<"Time: "<<(route[0]._timetrip.first - route.back()._timetrip.first)/60<<" minutes"<<endl;
 }
 
 void addEdges(int nStart,
@@ -306,7 +318,7 @@ int main(int argc, char **argv)
 	vector<int> weights;
 	std::map<std::string, int> node2int;
 	std::map<std::string, std::vector<std::string> > stop2train; //Mapping from stop to list of trains
-	std::map<std::string, std::vector<int> > stop2time; //Mapping stop_train to time when the train stops
+	std::map<std::string, std::vector<Time_Trip> > stop2time; //Mapping stop_train to Time_Trip Pair
 	std::map<std::string, Address> stop2addr;//Mapping stop id to Address structure
 	std::map<Edge, int> edge2weight; //Edge to weight
 	

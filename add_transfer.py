@@ -18,7 +18,7 @@ with open(nodes_file) as lines:
 			stop2trains[stop] = trains
 
 #add transfer
-edges_file = open("edges.txt", "a")
+edges_files = [open("edges-wkd.txt", "a"), open("edges-sat.txt", "a"), open("edges-sun.txt", "a")] 
 count = 0;
 with open(transfer_file) as lines:
 	for line in lines:
@@ -41,8 +41,10 @@ with open(transfer_file) as lines:
                                         edge2 = node11 + "\t" + node22
                                         edge3 = node12 + "\t" + node21
                                         edge4 = node12 + "\t" + node22
-					edges_file.write(edge1 + "\t609\n")
-					edges_file.write(edge2 + "\t609\n")
-					edges_file.write(edge3 + "\t609\n")
-					edges_file.write(edge4 + "\t609\n")
-edges_file.close()
+					for i in range(3):
+						edges_files[i].write(edge1 + "\t609\n")
+						edges_files[i].write(edge2 + "\t609\n")
+						edges_files[i].write(edge3 + "\t609\n")
+						edges_files[i].write(edge4 + "\t609\n")
+for i in range(3):
+	edges_files[i].close()

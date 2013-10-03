@@ -1,6 +1,8 @@
 subwayrouting
 =============
 * How to construct graph:
+Download schedule from MTA: http://www.mta.info/developers/data/nyct/subway/google_transit.zip; extract the zip file and put the folder google_transit to project directory
+Run:
 python extract_trips.py (input: trips.txt, output: trips_extracted.csv and direction_extracted.csv)
 python extract_time.py stop_times.txt (output: time_extracted.csv)
 python extract_stop.py stops.txt (output: stop_extracted.csv)

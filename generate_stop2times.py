@@ -14,11 +14,12 @@ def int2time(s):
 	hms = str(h) + ":" + str(m) + ":" + str(s)
 	return hms
 
-infile = "fullschedule.csv"
-stop2times_f = open("stop2times.txt", "w")
+schedule_file = sys.argv[1] #input
+stop2times_file = sys.argv[2] #ouput
+stop2times_f = open(stop2times_file, "w") #ouput
 stop2times = {}
 count = 0
-with open(infile) as lines:
+with open(schedule_file) as lines:
 	for line in lines:
 		count += 1
 		if count == 1:
@@ -27,18 +28,20 @@ with open(infile) as lines:
 		time = ar[1]
 		stop = ar[2]
 		train = ar[3]
+		tripID = ar[0]
+		time_tripID = (time2int(time), tripID)
 		st = stop + "_" + train
 		if stop2times.has_key(st):
-			stop2times[st].add(time2int(time))
+			stop2times[st].add(time_tripID)
 		else:
-			stop2times[st] = Set([time2int(time)])
+			stop2times[st] = Set([time_tripID])
 
 for key in stop2times.keys():
-	s = sorted(stop2times[key])
-	times = ""
-	for time in s:
+	s = sorted(stop2times[key], key=lambda trip: trip[0])
+	time_tripIDs = ""
+	for time_tripID in s:
 #		times += int2time(time) + "\t"
-		times += str(time) + "\t"
-	stop2times_f.write(key + "\t" + times.strip("\t") + "\n")
+		time_tripIDs += str(time_tripID[0]) + "\t" + time_tripID[1] + "\t"
+	stop2times_f.write(key + "\t" + time_tripIDs.strip("\t") + "\n")
 
 stop2times_f.close()

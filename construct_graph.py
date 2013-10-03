@@ -1,12 +1,15 @@
 #!/usr/bin/python
-#Choose the longest trip for each train (+ direction)
 import sys
 import copy
 from sets import Set
 import datetime
 import time
 
-infile = "fullschedule.csv"
+schedule_file = sys.argv[1] #input
+edge_file = sys.argv[2] #output
+node_file = sys.argv[3] #output
+stop2train_file = sys.argv[4] #output
+
 nodes = Set([])
 edges = {}
 stop2train = {}
@@ -15,7 +18,7 @@ pre_t_sec = ""
 pre_train = ""
 pre_trip = ""
 count = 0
-with open(infile) as lines:
+with open(schedule_file) as lines:
 	for line in lines:
 		count += 1
 		if count == 1:
@@ -58,7 +61,7 @@ with open(infile) as lines:
 			stop2train[_stop] = trains
 
 #Output stop2train 
-s2t_f = open("stop2train.csv", "w")
+s2t_f = open(stop2train_file, "w")
 for stop in stop2train.keys():
 	s2t = stop
 	for train in stop2train[stop]:
@@ -90,12 +93,12 @@ for stop in stop2train.keys():
                                         #It is directed graph then we keep edges in both direction
 
 #Write nodes
-nodes_f = open("nodes.txt", "w")
+nodes_f = open(node_file, "w")
 for node in nodes:
 	nodes_f.write(node + "\n");
 
 #Write edges:
-edges_f = open("edges.txt", "w")
+edges_f = open(edge_file, "w")
 for key in edges.keys():
 	edges_f.write(key + "\t" + str(int(edges[key])) +  "\n")	
 
