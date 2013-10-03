@@ -2,12 +2,12 @@ import sys
 #Join two tables based on tripID
 #Divide joined table wrt Weekday (WKD), Saturday (SAT) and Sunday (SUN)
 
-trips = "trips_extracted.csv"
-times = "time_extracted.csv"
+trips = "data/trips_extracted.csv" #input
+times = "data/time_extracted.csv" #input
 out = {}
-out["WKD"] = open("fullschedule-wkd.csv", "w")
-out["SAT"] =  open("fullschedule-sat.csv", "w")
-out["SUN"] = open("fullschedule-sun.csv", "w")
+out["WKD"] = open("data/fullschedule-wkd.csv", "w") #output
+out["SAT"] =  open("data/fullschedule-sat.csv", "w") #output
+out["SUN"] = open("data/fullschedule-sun.csv", "w") #output
 
 tripMap = {}
 

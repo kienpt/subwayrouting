@@ -2,7 +2,7 @@
 import sys
 
 infile = sys.argv[1]
-times_f = open("time_extracted.csv", "w")
+times_f = open("data/time_extracted.csv", "w")
 
 with open(infile) as lines:
 	for line in lines:

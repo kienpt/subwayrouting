@@ -12,11 +12,11 @@
 #include <boost/graph/dijkstra_shortest_paths.hpp>
 #include <boost/lexical_cast.hpp>
 
-#define EDGES_FILE "edges-wkd.txt"
-#define NODES_FILE "nodes-wkd.txt"
-#define STOP_2_TRAINS_FILE "stop2trains-wkd.txt"
-#define STOP_2_TIMES_FILE "stop2times-wkd.txt"
-#define STOPS_FILE "stops.txt"
+#define EDGES_FILE "data/edges-wkd.txt"
+#define NODES_FILE "data/nodes-wkd.txt"
+#define STOP_2_TRAINS_FILE "data/stop2trains-wkd.txt"
+#define STOP_2_TIMES_FILE "data/stop2times-wkd.txt"
+#define STOPS_FILE "data/stops.txt"
 #define TRANSFER_TIME 609
 
 using namespace boost;

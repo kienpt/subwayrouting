@@ -2,7 +2,7 @@
 import sys
 
 infile = sys.argv[1]
-stops = open("stop_extracted.csv", "w")
+stops = open("data/stop_extracted.csv", "w")
 with open(infile) as lines:
 	for line in lines:
 		a = line.split(",")
